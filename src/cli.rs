@@ -44,12 +44,21 @@ pub fn build_query(cli: &Cli) -> Query {
 }
 
 pub fn print_results(results: &[&FileEntry]) {
-    todo!()
+    if results.is_empty() {
+        println!("No results found.");
+        return;
+    }
+    
+    println!("Found {} results.", results.len());
+    
+    for entry in results {
+        println!("{}", entry.name);
+    }
 }
 
 pub fn run(cli: &Cli) {
     let mut cache = Cache::new();
-    cache.build(Path::new(&cli.dir), 1).unwrap();
+    cache.build(Path::new(&cli.dir), 30).unwrap();
 
     let query = build_query(cli);
     let results = search(&cache, & query);
