@@ -28,7 +28,18 @@ pub struct Cli {
 }
 
 pub fn build_query(cli: &Cli) -> Query {
-    todo!()
+    Query {
+        name_contains: cli.name.clone(),
+        extension: cli.ext.clone(),
+        min_size: cli.min_size,
+        max_size: cli.max_size,
+        is_dir: match (cli.dirs_only, cli.files_only) {
+            (true, _) => Some(true),
+            (_, true) => Some(false),
+            _ => None,
+        },
+        ..Query::new()
+    }
 }
 
 pub fn print_results(results: &[&FileEntry]) {
