@@ -1,5 +1,6 @@
+use std::path::Path;
 use clap::Parser;
-use crate::cache::Cache;
+use crate::cache::{Cache, FileEntry};
 use crate::search::{Query, search};
 
 #[derive(Parser)]
@@ -47,5 +48,11 @@ pub fn print_results(results: &[&FileEntry]) {
 }
 
 pub fn run(cli: &Cli) {
-    todo!()
+    let mut cache = Cache::new();
+    cache.build(Path::new(&cli.dir), 1).unwrap();
+
+    let query = build_query(cli);
+    let results = search(&cache, & query);
+
+    print_results(&results);
 }
