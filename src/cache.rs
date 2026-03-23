@@ -3,6 +3,7 @@ use std::path::Path;
 use std::time::SystemTime;
 use walkdir::WalkDir;
 use serde::{Serialize, Deserialize};
+use lz4_flex;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
@@ -58,12 +59,14 @@ impl Cache {
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
         let bytes = postcard::to_allocvec(self)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        std::fs::write(path, bytes)
+        let compressed = lz4_flex::compress(&bytes);
+        std::fs::write(path, compressed)
     }
 
     pub fn load(path: &Path) -> std::io::Result<Cache> {
         let bytes = std::fs::read(path)?;
-        postcard::from_bytes::<Cache>(&bytes)
+        let decompressed = lz4_flex::decompress(&bytes, 0).unwrap();
+        postcard::from_bytes::<Cache>(&decompressed)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
     }
 
