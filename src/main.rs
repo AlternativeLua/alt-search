@@ -1,0 +1,11 @@
+mod cache;
+mod search;
+mod cli;
+
+use clap::Parser;
+use cli::Cli;
+
+fn main() {
+    let cli = Cli::parse();
+    cli::run(&cli);
+}

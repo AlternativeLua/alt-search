@@ -6,7 +6,7 @@ pub struct Query {
     pub extension: Option<String>,
     pub min_size: Option<u64>,
     pub max_size: Option<u64>,
-    pub modified_after: Option<SystemTime>,
+    pub modified_after: Option<u64>,
     pub is_dir: Option<bool>,
 }
 

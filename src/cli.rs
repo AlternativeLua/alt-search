@@ -26,6 +26,9 @@ pub struct Cli {
 
     #[arg(long)]
     pub files_only: bool,
+
+    #[arg(long)]
+    pub reindex: bool,
 }
 
 pub fn build_query(cli: &Cli) -> Query {
@@ -57,11 +60,21 @@ pub fn print_results(results: &[&FileEntry]) {
 }
 
 pub fn run(cli: &Cli) {
-    let mut cache = Cache::new();
-    cache.build(Path::new(&cli.dir), 30).unwrap();
-
+    let cache_path = Path::new("cache.bin");
     let query = build_query(cli);
-    let results = search(&cache, & query);
 
-    print_results(&results);
+    if cache_path.exists() && !cli.reindex {
+        let cache = Cache::load(&cache_path).unwrap();
+        let results = search(&cache, & query);
+
+        print_results(&results);
+    } else {
+        let mut cache = Cache::new();
+        cache.build(Path::new(&cli.dir), 120).unwrap();
+
+        cache.save(&cache_path).unwrap();
+        let results = search(&cache, & query);
+
+        print_results(&results);
+    }
 }
