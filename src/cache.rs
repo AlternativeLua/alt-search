@@ -7,7 +7,6 @@ use serde::{Serialize, Deserialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
     pub name: String,
-    pub path: String,
     pub extension: Option<String>,
     pub size: u64,
     pub modified: u64,
@@ -35,7 +34,6 @@ impl Cache {
 
             let file_entry = FileEntry {
                 name: entry.file_name().to_string_lossy().to_string(),
-                path: entry.path().to_string_lossy().to_string(),
                 extension: entry.path().extension().map(|e| e.to_string_lossy().to_string()),
                 size: metadata.len(),
                 modified: metadata.modified()
