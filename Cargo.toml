@@ -1,0 +1,11 @@
+[package]
+name = "AltSearch"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+walkdir = "2.5.0"
+clap = { version = "4.6.0", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+postcard = { version = "1", features = ["alloc"] }
+lz4_flex = "0.13.0"
