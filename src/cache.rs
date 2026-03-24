@@ -4,7 +4,7 @@ use std::time::SystemTime;
 use jwalk::{WalkDir};
 use serde::{Serialize, Deserialize};
 use lz4_flex;
-use rayon::prelude::*;
+use rayon::*;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
