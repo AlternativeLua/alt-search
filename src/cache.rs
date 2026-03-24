@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::SystemTime;
-use walkdir::WalkDir;
+use walkdir::{WalkDir};
 use serde::{Serialize, Deserialize};
 use lz4_flex;
+use rayon::prelude::*;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
@@ -27,30 +28,39 @@ impl Cache {
     }
 
     pub fn build(&mut self, root: &Path, depth: usize) -> std::io::Result<usize> {
-        let walker = WalkDir::new(root).min_depth(1).max_depth(depth);
+        let entries: Vec<walkdir::DirEntry> = WalkDir::new(root)
+            .min_depth(1)
+            .max_depth(depth)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .collect();
 
-        for entry in walker {
-            let entry = entry?;
-            let metadata = entry.metadata()?;
-
-            let file_entry = FileEntry {
-                name: entry.file_name().to_string_lossy().to_string(),
-                extension: entry.path().extension().map(|e| e.to_string_lossy().to_string()),
-                size: metadata.len(),
-                modified: metadata.modified()
-                    .ok()
-                    .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
-                    .map(|d| d.as_secs())
-                    .unwrap_or(0),
-                created: metadata.created()
-                    .ok()
-                    .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
-                    .map(|d| d.as_secs())
-                    .unwrap_or(0),
-                is_dir: entry.file_type().is_dir(),
-            };
-
-            self.entries.insert(entry.path().to_string_lossy().to_string(), file_entry);
+        let file_entries: Vec<(String, FileEntry)> = entries
+            .par_iter()
+            .filter_map(|entry| {
+                let metadata = entry.metadata().ok()?;
+                let file_entry = FileEntry {
+                    name: entry.file_name().to_string_lossy().to_string(),
+                    extension: entry.path().extension().map(|e| e.to_string_lossy().to_string()),
+                    size: metadata.len(),
+                    modified: metadata.modified()
+                        .ok()
+                        .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0),
+                    created: metadata.created()
+                        .ok()
+                        .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0),
+                    is_dir: entry.file_type().is_dir(),
+                };
+                Some((entry.path().to_string_lossy().to_string(), file_entry))
+            })
+            .collect();
+        
+        for (key, value) in file_entries {
+            self.entries.insert(key, value);
         }
 
         Ok(self.entries.len())

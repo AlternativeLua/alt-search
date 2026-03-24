@@ -9,3 +9,4 @@ clap = { version = "4.6.0", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 postcard = { version = "1", features = ["alloc"] }
 lz4_flex = "0.13.0"
+rayon = "1.11.0"
