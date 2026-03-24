@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::time::Instant;
 use clap::Parser;
 use crate::cache::{Cache, FileEntry};
 use crate::search::{Query, search};
@@ -7,7 +8,7 @@ use crate::search::{Query, search};
 #[command(name = "altsearch")]
 pub struct Cli {
     #[arg(short, long)]
-    pub dir: String,
+    pub dir: Option<String>,
 
     #[arg(short, long)]
     pub name: Option<String>,
@@ -60,20 +61,38 @@ pub fn print_results(results: &[&FileEntry]) {
 }
 
 pub fn run(cli: &Cli) {
-    let cache_path = Path::new("cache.bin");
+    let cache_path = std::env::var("APPDATA")
+        .map(|appdata| PathBuf::from(appdata).join("AltSearch").join("cache.bin"))
+        .unwrap_or_else(|_| PathBuf::from("cache.bin"));
+    if let Some(parent) = cache_path.parent() {
+        std::fs::create_dir_all(parent).unwrap();
+    }
+
     let query = build_query(cli);
 
     if cache_path.exists() && !cli.reindex {
+        let start = Instant::now();
         let cache = Cache::load(&cache_path).unwrap();
-        let results = search(&cache, & query);
+        println!("Cache loaded in {}ms", start.elapsed().as_millis());
+
+        let start = Instant::now();
+        let results = search(&cache, &query);
+        println!("Search took {}ms", start.elapsed().as_millis());
 
         print_results(&results);
     } else {
         let mut cache = Cache::new();
-        cache.build(Path::new(&cli.dir), 120).unwrap();
+        let start = Instant::now();
+        
+        let dir = cli.dir.as_deref().unwrap_or(".");
+        cache.build(Path::new(dir)).unwrap();
+        println!("Indexed {} entries in {}ms", cache.len(), start.elapsed().as_millis());
 
         cache.save(&cache_path).unwrap();
-        let results = search(&cache, & query);
+
+        let start = Instant::now();
+        let results = search(&cache, &query);
+        println!("Search took {}ms", start.elapsed().as_millis());
 
         print_results(&results);
     }

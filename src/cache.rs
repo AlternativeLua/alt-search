@@ -27,10 +27,10 @@ impl Cache {
         Cache { entries }
     }
 
-    pub fn build(&mut self, root: &Path, depth: usize) -> std::io::Result<usize> {
+    pub fn build(&mut self, root: &Path) -> std::io::Result<usize> {
         let file_entries: Vec<(String, FileEntry)> = WalkDir::new(root)
             .min_depth(1)
-            .max_depth(depth)
+            .max_depth(usize::MAX)
             .into_iter()
             .filter_map(|e| e.ok())
             .filter_map(|entry| {
@@ -78,5 +78,9 @@ impl Cache {
 
     pub fn iter(&self) -> impl Iterator<Item = &FileEntry> {
         self.entries.values()
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
     }
 }
