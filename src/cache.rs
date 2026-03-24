@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::SystemTime;
-use walkdir::{WalkDir};
+use jwalk::{WalkDir};
 use serde::{Serialize, Deserialize};
 use lz4_flex;
 use rayon::prelude::*;
@@ -28,15 +28,11 @@ impl Cache {
     }
 
     pub fn build(&mut self, root: &Path, depth: usize) -> std::io::Result<usize> {
-        let entries: Vec<walkdir::DirEntry> = WalkDir::new(root)
+        let file_entries: Vec<(String, FileEntry)> = WalkDir::new(root)
             .min_depth(1)
             .max_depth(depth)
             .into_iter()
             .filter_map(|e| e.ok())
-            .collect();
-
-        let file_entries: Vec<(String, FileEntry)> = entries
-            .par_iter()
             .filter_map(|entry| {
                 let metadata = entry.metadata().ok()?;
                 let file_entry = FileEntry {
@@ -58,7 +54,7 @@ impl Cache {
                 Some((entry.path().to_string_lossy().to_string(), file_entry))
             })
             .collect();
-        
+
         for (key, value) in file_entries {
             self.entries.insert(key, value);
         }
