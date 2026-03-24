@@ -65,13 +65,24 @@ impl Cache {
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
         let bytes = postcard::to_allocvec(self)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let original_size = bytes.len() as u64;
         let compressed = lz4_flex::compress(&bytes);
-        std::fs::write(path, compressed)
+
+        // store original size as 8 bytes at the front so load knows how much to allocate
+        let mut output = original_size.to_le_bytes().to_vec();
+        output.extend(compressed);
+        std::fs::write(path, output)
     }
 
     pub fn load(path: &Path) -> std::io::Result<Cache> {
         let bytes = std::fs::read(path)?;
-        let decompressed = lz4_flex::decompress(&bytes, 0).unwrap();
+
+        // read the original size from the first 8 bytes
+        let (size_bytes, compressed) = bytes.split_at(8);
+        let original_size = u64::from_le_bytes(size_bytes.try_into().unwrap()) as usize;
+
+        let decompressed = lz4_flex::decompress(compressed, original_size)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         postcard::from_bytes::<Cache>(&decompressed)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
     }
