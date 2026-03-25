@@ -23,20 +23,17 @@ impl Query {
 }
 
 pub fn search<'a>(cache: &'a Cache, query: &Query) -> Vec<&'a FileEntry> {
-    cache.iter()
-        .filter(|entry| matches_name(entry, query))
-        .filter(|entry| matches_extension(entry, query))
-        .filter(|entry| matches_size(entry, query))
-        .filter(|entry| matches_modified(entry, query))
-        .filter(|entry| matches_is_dir(entry, query))
-        .collect()
-}
+    let candidates: Vec<&FileEntry> = match &query.name_contains {
+        Some(name) => cache.search_by_name(name).collect(),
+        None => cache.iter().collect(),
+    };
 
-fn matches_name(entry: &FileEntry, query: &Query) -> bool {
-    match &query.name_contains {
-        Some(name) => entry.name.to_lowercase().contains(&name.to_lowercase()),
-        None => true,
-    }
+    candidates.into_iter()
+        .filter(|e| matches_extension(e, query))
+        .filter(|e| matches_size(e, query))
+        .filter(|e| matches_modified(e, query))
+        .filter(|e| matches_is_dir(e, query))
+        .collect()
 }
 
 fn matches_extension(entry: &FileEntry, query: &Query) -> bool {

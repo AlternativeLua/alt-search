@@ -18,13 +18,15 @@ pub struct FileEntry {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Cache {
-    entries: HashMap<String, FileEntry>
+    entries: HashMap<String, FileEntry>,
+    name_index: HashMap<String, Vec<String>>,
 }
 
 impl Cache {
     pub fn new() -> Cache {
         let entries = HashMap::new();
-        Cache { entries }
+        let name_index = HashMap::new();
+        Cache { entries, name_index }
     }
 
     pub fn build(&mut self, root: &Path) -> std::io::Result<usize> {
@@ -56,6 +58,11 @@ impl Cache {
             .collect();
 
         for (key, value) in file_entries {
+            self.name_index
+                .entry(value.name.to_lowercase())
+                .or_insert_with(Vec::new)
+                .push(key.clone());
+
             self.entries.insert(key, value);
         }
 
@@ -85,6 +92,15 @@ impl Cache {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         postcard::from_bytes::<Cache>(&decompressed)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+    }
+
+    pub fn search_by_name<'a>(&'a self, name: &str) -> impl Iterator<Item = &'a FileEntry> {
+        let name_lower = name.to_lowercase();
+        self.name_index
+            .iter()
+            .filter(move |(k, _)| k.contains(&name_lower))
+            .flat_map(|(_, paths)| paths.iter())
+            .filter_map(|path| self.entries.get(path))
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &FileEntry> {
