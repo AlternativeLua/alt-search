@@ -1,11 +1,9 @@
-use std::collections::HashMap;
 use std::path::Path;
 use std::time::SystemTime;
 use jwalk::{WalkDir};
 use serde::{Serialize, Deserialize};
-use lz4_flex;
 use rayon::*;
-use zstd::*;
+use ahash::AHashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
@@ -19,16 +17,16 @@ pub struct FileEntry {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Cache {
-    entries: HashMap<String, FileEntry>,
+    entries: AHashMap<String, FileEntry>,
 
     #[serde(skip)]
-    name_index: HashMap<String, Vec<String>>,
+    name_index: AHashMap<String, Vec<String>>,
 }
 
 impl Cache {
     pub fn new() -> Cache {
-        let entries = HashMap::new();
-        let name_index = HashMap::new();
+        let entries = AHashMap::new();
+        let name_index = AHashMap::new();
         Cache { entries, name_index }
     }
 
