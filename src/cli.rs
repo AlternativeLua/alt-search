@@ -1,8 +1,10 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use clap::Parser;
-use altsearch::cache::{Cache, FileEntry};
+use std::sync::{Arc, Mutex};
+use altsearch::cache::{FileEntry, Cache};
 use altsearch::search::{search, Query};
+use altsearch::watcher::start_watcher;
 
 #[derive(Parser)]
 #[command(name = "altsearch")]
@@ -64,36 +66,35 @@ pub fn run(cli: &Cli) {
     let cache_path = std::env::var("APPDATA")
         .map(|appdata| PathBuf::from(appdata).join("AltSearch").join("cache.bin"))
         .unwrap_or_else(|_| PathBuf::from("cache.bin"));
+
     if let Some(parent) = cache_path.parent() {
         std::fs::create_dir_all(parent).unwrap();
     }
 
-    let query = build_query(cli);
-
+    let mut cache = Cache::new();
     if cache_path.exists() && !cli.reindex {
         let start = Instant::now();
-        let cache = Cache::load(&cache_path).unwrap();
+        cache = Cache::load(&cache_path).unwrap();
         println!("Cache loaded in {}ms", start.elapsed().as_millis());
-
-        let start = Instant::now();
-        let results = search(&cache, &query);
-        println!("Search took {}ms", start.elapsed().as_millis());
-
-        print_results(&results);
     } else {
-        let mut cache = Cache::new();
         let start = Instant::now();
-        
         let dir = cli.dir.as_deref().unwrap_or(".");
         cache.build(Path::new(dir)).unwrap();
         println!("Indexed {} entries in {}ms", cache.len(), start.elapsed().as_millis());
-
         cache.save(&cache_path).unwrap();
-
-        let start = Instant::now();
-        let results = search(&cache, &query);
-        println!("Search took {}ms", start.elapsed().as_millis());
-
-        print_results(&results);
     }
+
+    let cache = Arc::new(Mutex::new(cache));
+    if let Some(dir) = &cli.dir {
+        let _ = start_watcher(Arc::clone(&cache), vec![dir.clone()], cache_path.clone());
+    }
+
+    let cache = cache.lock().unwrap();
+    let query = build_query(cli);
+
+    let start = Instant::now();
+    let results = search(&cache, &query);
+    println!("Search took {}ms", start.elapsed().as_millis());
+
+    print_results(&results);
 }
