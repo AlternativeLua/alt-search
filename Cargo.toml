@@ -2,6 +2,12 @@
 name = "altsearch"
 version = "0.1.0"
 edition = "2021"
+description = "A fast file search tool for Windows"
+license = "MIT"
+repository = "https://github.com/AlternativeLua/alt-search"
+readme = "README.md"
+keywords = ["search", "files", "windows", "cli"]
+categories = ["command-line-utilities"]
 
 [lib]
 name = "altsearch"
