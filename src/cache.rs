@@ -5,6 +5,7 @@ use jwalk::{WalkDir};
 use serde::{Serialize, Deserialize};
 use lz4_flex;
 use rayon::*;
+use zstd::*;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
@@ -19,6 +20,8 @@ pub struct FileEntry {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Cache {
     entries: HashMap<String, FileEntry>,
+
+    #[serde(skip)]
     name_index: HashMap<String, Vec<String>>,
 }
 
@@ -72,29 +75,34 @@ impl Cache {
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
         let bytes = postcard::to_allocvec(self)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        let original_size = bytes.len() as u64;
-        let compressed = lz4_flex::compress(&bytes);
-
-        // store original size as 8 bytes at the front so load knows how much to allocate
-        let mut output = original_size.to_le_bytes().to_vec();
-        output.extend(compressed);
-        std::fs::write(path, output)
+        let compressed = zstd::encode_all(bytes.as_slice(), 3)?;
+        std::fs::write(path, compressed)?;
+        Ok(())
     }
 
     pub fn load(path: &Path) -> std::io::Result<Cache> {
         let bytes = std::fs::read(path)?;
+        let decompressed = zstd::decode_all(bytes.as_slice())?;
 
-        // read the original size from the first 8 bytes
-        let (size_bytes, compressed) = bytes.split_at(8);
-        let original_size = u64::from_le_bytes(size_bytes.try_into().unwrap()) as usize;
-
-        let decompressed = lz4_flex::decompress(compressed, original_size)
+        let mut cache = postcard::from_bytes::<Cache>(&decompressed)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        postcard::from_bytes::<Cache>(&decompressed)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+
+        let pairs: Vec<(String, String)> = cache.entries
+            .iter()
+            .map(|(path, entry)| (entry.name.to_lowercase(), path.clone()))
+            .collect();
+
+        for (name, path) in pairs {
+            cache.name_index
+                .entry(name)
+                .or_insert_with(Vec::new)
+                .push(path);
+        }
+
+        Ok(cache)
     }
 
-    pub fn search_by_name<'a>(&'a self, name: &str) -> impl Iterator<Item = &'a FileEntry> {
+    pub fn search_by_name(&self, name: &str) -> impl Iterator<Item=&FileEntry> {
         let name_lower = name.to_lowercase();
         self.name_index
             .iter()
