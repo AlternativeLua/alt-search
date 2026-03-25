@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use clap::Parser;
-use crate::cache::{Cache, FileEntry};
-use crate::search::{Query, search};
+use altsearch::cache::{Cache, FileEntry};
+use altsearch::search::{search, Query};
 
 #[derive(Parser)]
 #[command(name = "altsearch")]

@@ -1,5 +1,3 @@
-mod cache;
-mod search;
 mod cli;
 
 use clap::Parser;

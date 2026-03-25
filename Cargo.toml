@@ -1,7 +1,15 @@
 [package]
-name = "AltSearch"
+name = "altsearch"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+
+[lib]
+name = "altsearch"
+path = "src/lib.rs"
+
+[[bin]]
+name = "altsearch"
+path = "src/main.rs"
 
 [dependencies]
 jwalk = "0.8.1"
