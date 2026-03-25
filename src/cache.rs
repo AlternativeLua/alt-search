@@ -109,6 +109,55 @@ impl Cache {
             .filter_map(|path| self.entries.get(path))
     }
 
+    fn entry_from_path(path: &Path) -> Option<(String, FileEntry)> {
+        let metadata = std::fs::metadata(path).ok()?;
+        let file_entry = FileEntry {
+            name: path.file_name()?.to_string_lossy().to_string(),
+            extension: path.extension().map(|e| e.to_string_lossy().to_string()),
+            size: metadata.len(),
+            modified: metadata.modified()
+                .ok()
+                .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
+            created: metadata.created()
+                .ok()
+                .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
+            is_dir: metadata.is_dir(),
+        };
+        Some((path.to_string_lossy().to_string(), file_entry))
+    }
+
+    pub fn add_entry(&mut self, path: &Path) {
+        if let Some((key, entry)) = Self::entry_from_path(path) {
+            self.name_index
+                .entry(entry.name.to_lowercase())
+                .or_insert_with(Vec::new)
+                .push(key.clone());
+            self.entries.insert(key, entry);
+        }
+    }
+
+    pub fn remove_entry(&mut self, path: &Path) {
+        let key = path.to_string_lossy().to_string();
+        if let Some(entry) = self.entries.remove(&key) {
+            let name_lower = entry.name.to_lowercase();
+            if let Some(paths) = self.name_index.get_mut(&name_lower) {
+                paths.retain(|p| p != &key);
+                if paths.is_empty() {
+                    self.name_index.remove(&name_lower);
+                }
+            }
+        }
+    }
+
+    pub fn update_entry(&mut self, path: &Path) {
+        self.remove_entry(path);
+        self.add_entry(path);
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &FileEntry> {
         self.entries.values()
     }
